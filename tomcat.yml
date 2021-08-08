@@ -1,0 +1,49 @@
+- hosts: web
+  become: yes
+  tasks:
+    - name: Install java8
+      yum:
+        name: java-1.8.0-openjdk
+        state: present
+    - name: download tomcat8
+      get_url:
+        url: https://mirrors.estointernet.in/apache/tomcat/tomcat-8/v8.5.69/bin/apache-tomcat-8.5.69.tar.gz
+        dest: /opt/
+    - name: check /opt/tomcat8 folder ispresent
+      stat:
+        path: /opt/tomcat8
+      register: st
+    - name: extract the file
+      unarchive:
+        src: /opt/apache-tomcat-8.5.69.tar.gz
+        dest: /opt/
+        remote_src: True
+      when: not st.stat.exists
+    - name: rename the folder
+      copy:
+        src: /opt/apache-tomcat-8.5.69/
+        dest: /opt/tomcat8/
+        remote_src: True
+        owner: ec2-user
+        group: ec2-user
+      when: not st.stat.exists
+    - name: remove unwanted files and folders
+      file:
+        path: /opt/apache-tomcat-8.5.69
+        state: absent
+
+    - name: configure tomcat as a service
+      copy: src=tomcat-initscript.sh dest=/etc/init.d/tomcat mode=0755
+
+    - name: start and enable tomcat server
+      service:
+        name: tomcat
+        state: started
+        enabled: yes
+
+    - name: deploy sample app
+      copy:
+        src: index.html
+        dest: /opt/tomcat8/webapps/myapp/
+        owner: ec2-user
+        group: ec2-user
